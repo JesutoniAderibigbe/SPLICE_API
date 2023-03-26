@@ -1,23 +1,20 @@
 
 
 
-const express = require("express");
+
 const User = require('../models/Users')
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const Product = require('../models/Products');
-const Users = require("../models/Users");
-const Order = require("../models/Orders");
-const paystack = require('paystack')(process.env.PAYSTACK_SECRET_KEY);
-const axios = require('axios');
-const PAYSTACK_SECRET_KEY = "sk_test_b70d68ef4f6985bace857bd58a1046115928d854"
 
-const PUBLISHABLE_KEY = "pk_test_51MmyWZKEeMo1d6ezYL8rmxFLO2sOObeyosduvaQTyC7bObsj7d7GYmcq0FrDlgZEben8xXifryGyJUiRMvRFEzAc006dIAJYDW";
+const Order = require("../models/Orders");
+
+
 
 const SECRET_KEY = "sk_test_51MmyWZKEeMo1d6ezf8DmLqa8OWMHfFbNVDV4fIVS3iur30I2QARaJpukJPGdpUQpm4aCGFq1j0VHBrcm0bNQQpVd00vvYv5GH8";
 
 const stripe = require('stripe')(SECRET_KEY);
-const nodemailer = require('nodemailer');
+
 
 const JWT_SECRET = "facebook"
 
