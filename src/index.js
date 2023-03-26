@@ -3,8 +3,8 @@ const app = express();
 const bodyParser = require("body-parser");
 const mongoose  = require("mongoose");
 const PORT = process.env.PORT || 8000
-const userRoutes = require('../src/routes/userRoutes');
-const productRoutes = require('../src/routes/productRoutes');
+const userRoutes = require('./routes/userRoutes');
+const productRoutes = require('./routes/productRoutes');
 const path = require('path');
 
 
