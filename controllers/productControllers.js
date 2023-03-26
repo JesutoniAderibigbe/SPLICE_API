@@ -2,48 +2,46 @@ const express = require("express")
 const Product = require('../models/Products')
 const mongoose = require("mongoose");
 const ObjectId = mongoose.Types.ObjectId;
+const Image = require("../models/image");
+const cloudinary = require('../utils/cloudinary');
+const upload = require('../middlewares/authfile');
+
 
 
 
 exports.addProduct = async(req, res)=> {
+  try {
 
-
-    try {
-
-
-        //instead of creating a middleware, I handled it here by ensuring that it is only admin that can add products and not just a random user who gets the endpoint by checking or hacking. So if the header is not an admin, it won't be authorized to create products.
-        
-        const product = new Product({
-          
-            title: req.body.title,
-            price: req.body.price,
-            image: req.file.filename
-        })
-        await product.save();
-
-         // Construct URL to image file
-         const imageUrl = `http://localhost:8000/public/${product.image}`;
-
-
-        res.json({
-            success: true,
-            message: 'Product added successfully',
-            product: {
-              
-                title: product.title,
-                price: product.price,
-                image: imageUrl
-            }
-        }); console.log(product)
-        
-    } catch (error) {
-        res.status(404).json({error: error.message}),
-
-        console.log(error)
-        
-    }
+    const result = await cloudinary.uploader.upload(req.file.path);
     
+    
+    const product = new Product({
+      title: req.body.title,
+      price: req.body.price,
+      image: result.secure_url,
+      category: req.body.category,
+    });
+
+    
+    
+    await product.save();
+
+    res.json({
+      success: true,
+      message: 'Product added successfully',
+      product: {
+        title: product.title,
+        price: `#${product.price}`,
+        image: result.secure_url,
+        category: product.category
+      }
+    });
+  } catch (error) {
+    res.status(404).json({error: error.message});
+    console.log(error);
+  }
 }
+
 
 exports.getAllProducts = async(req, res)=>{
     try {
@@ -54,15 +52,20 @@ exports.getAllProducts = async(req, res)=>{
             return res.status(400).json({message: "There are no products at all in this database"})
         }
         const productsWithImageUrl = product.map(product => {
-            const imageUrl = `http://localhost:8000/public/${product.image}`;
+            const imageUrl = product.image;
             return {
               title: product.title,
-              price: product.price,
-              image: imageUrl
+              price: `#${product.price}` ,
+              image: product.image,
+              id: product._id,
+              category: product.category
             }
           });
+
+          console.log(productsWithImageUrl)
       
-          return res.status(200).json(productsWithImageUrl);
+          return res.status(200).json({products: productsWithImageUrl});
+         
         
     } catch (error) {
         res.status(404).json({message: error.message})
@@ -80,12 +83,134 @@ exports.getProductsbyName = async(req, res)=> {
       if (!products.length) {
         return res.status(404).json({ message: `No products found for ${brand}` });
       }
-      res.status(200).json(products);
+      res.status(200).json({products: products});
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   };
 
+
+  exports.getProductsbyCategory = async(req, res)=>{
+    const category = req.params.category
+    const regex = new RegExp(category, 'i');
+
+    try {
+        const products = await Product.find({category: regex});
+
+        if(!products.length){
+            return res.status(404).json({ message: `No products found for ${category}` });
+
+
+        }
+        res.status(200).json({products: products});
+
+        
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ error: error.message });
+        
+    }
+  }
+
+
+  exports.getProductsbyPrice = async(req, res)=>{
+    try {
+      const { price } = req.query;
+      let products;
+    
+      if (price) {
+        // Get all products with a price less than or equal to the provided price
+        products = await Product.find({ price: { $lte: price } });
+      } else {
+        // Get all products if no price is provided
+        products = await Product.find();
+      }
+    
+      if (!products.length) {
+        return res.status(404).json({ message: "No products found" });
+      }
+    
+      res.status(200).json({ products: products });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: error.message });
+    }
+    
+}
+
+
+  exports.updateProduct = async(req, res)=>{
+
+    try {
+        const {productId}= req.params;
+
+        //await cloudinary.uploader.destory(Product.cloudinary_id);
+
+
+        const result = await cloudinary.uploader.upload(req.file.path);
+
+        
+
+
+        
+
+        const product = await Product.findByIdAndUpdate(
+          productId, req.body, {
+            new: true
+          }
+           
+        );
+        console.log(result.secure_url);
+
+        if(!product){
+            return res.status(400).json({message: "There is no such product on the cart"})
+        }
+        res.json({product: product})
+    } catch (error) {
+        res.status(500).json({error: error.message})
+        
+    }
+  
+
+  }
+
+
+  exports.deleteProduct = async(req, res)=>{
+
+
+    try {
+      const {productId} = req.params
+    const product = await Product.findByIdAndDelete(productId)
+
+
+    if(!product){
+      console.log(`There is no such product with the ${productId} to delete`)
+      return res.status(400).json({message: `There is no such product with the ${productId} to delete`})
+    }
+    console.log(product)
+   
+    return res.status(200).json({message: "Product has been deleted"})
+      
+    } catch (error) {
+      console.log(error)
+      res.status(404).json({error: error.message})
+      
+    }
+    
+  }
+
+
+  exports.practice = async(req, res)=>{
+
+    try {
+      const result = await cloudinary.uploader.upload(req.file.path)
+      res.status(200).json({message: result})
+      
+    } catch (error) {
+      console.log(error)
+      
+    }
+  }
 
   
 

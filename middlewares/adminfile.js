@@ -7,7 +7,7 @@ const authmiddleware = async(req, res, next)=>{
         }
         const role =  await authHeader.split(' ')[1];
         if (role !== "admin") {
-          return res.status(401).json({ message: "Unauthorized" });
+          return res.status(403).json({ message: "Unauthorized" });
         }
         next();
 }

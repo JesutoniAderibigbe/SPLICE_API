@@ -1,3 +1,8 @@
+const dotenv = require('dotenv');
+require('dotenv').config();
+
+
+
 const express = require("express");
 const User = require('../models/Users')
 const jwt = require('jsonwebtoken');
@@ -5,9 +10,21 @@ const bcrypt = require('bcrypt');
 const Product = require('../models/Products');
 //const Users = require("../models/Users");
 const Order = require("../models/Orders");
+const paystack = require('paystack')(process.env.PAYSTACK_SECRET_KEY);
+const axios = require('axios');
+const PAYSTACK_SECRET_KEY = "sk_test_b70d68ef4f6985bace857bd58a1046115928d854"
+
+const PUBLISHABLE_KEY = "pk_test_51MmyWZKEeMo1d6ezYL8rmxFLO2sOObeyosduvaQTyC7bObsj7d7GYmcq0FrDlgZEben8xXifryGyJUiRMvRFEzAc006dIAJYDW";
+
+const SECRET_KEY = "sk_test_51MmyWZKEeMo1d6ezf8DmLqa8OWMHfFbNVDV4fIVS3iur30I2QARaJpukJPGdpUQpm4aCGFq1j0VHBrcm0bNQQpVd00vvYv5GH8";
+
+const stripe = require('stripe')(SECRET_KEY);
+const nodemailer = require('nodemailer');
+
+const JWT_SECRET = "facebook"
 
 
-const JWT_SECRET = 'facebook';
+
 
 //Sign Up user
 exports.UserSignUp = async(req, res)=>{
@@ -31,8 +48,22 @@ exports.UserSignUp = async(req, res)=>{
             username: req.body.username,
             createdAt: new Date(), 
         })
-        await user.save()
-        res.status(200).json({message: `${user.username} with the email ${user.email} has been created`})
+        await user.save();
+
+      //   const transporter = nodemailer.createTransport(transporter {
+      //     service: "hotmail",
+      //     auth: {
+      //       user: "outlook_DD7428FBF76933B9@outlook.com",
+      //       pass: "jesutoni"
+      //     }
+      //   });;
+
+      // }
+
+
+
+
+        res.status(201).json({message: `${user.username} with the email ${user.email} has been created`})
         
     } catch (error) {
         res.status(404).json({
@@ -51,7 +82,7 @@ exports.getUsersbyId = async(req, res)=>{
         console.log(user)
 
 if(!user){
-    return res.status(400).json({message: "There is no user"})
+    return res.status(400).json({message: `There is no user with ${req.params.email} `})
 }
 return res.status(200).json(user);
         
@@ -107,10 +138,11 @@ if(!isPasswordValid){
 
 }
 
+
 //get Users Record
 exports.getUsers = async(req,res)=>{
     const user = await User.find();
-    res.json(user)
+    res.json({users: user})
     console.log(user)
 }
 
@@ -137,13 +169,13 @@ exports.deleteUsers = async(req, res)=>{
 //update UsersRecords
 exports.updateUsers = async(req, res)=>{
     try {
-        const user = await Users.findByIdAndUpdate(req.params.id, req.body, {
+        const user = await User.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
              })
              if(!user){
                  return res.status(400).json({message: "There is no user with such ID"})
              }
-             console.log(user)
+             console.log({user:user})
              return res.status(200).json(user)
         
     } catch (error) {
@@ -158,7 +190,7 @@ exports.updateUsers = async(req, res)=>{
 
 exports.addProductforUser = async (req, res) => {
     try {
-      const { productId, deliveryDate } = req.body;
+      const { productId, deliveryDate, destination } = req.body;
       const { userId } = req.params;
   
       // Get the user by ID
@@ -174,6 +206,7 @@ exports.addProductforUser = async (req, res) => {
         user: userId,
         product: productId,
         deliveryDate: new Date(deliveryDate).toISOString(),
+        destination: destination
       });
   
       // Push the order to the user's orders array
@@ -225,6 +258,45 @@ exports.addProductforUser = async (req, res) => {
   }
 
 
+  exports.getOrdersAndPrice = async (req, res) => {
+    try {
+      const { userId } = req.params;
+  
+      // Get the user by ID
+      const user = await User.findById(userId);
+  
+      // Make sure that the user exists
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+  
+      // Get the total number of orders
+      const numOrders = user.orders.length;
+  
+      // Calculate the total price of all orders
+      let totalPrice = 0;
+      for (const order of user.orders) {
+        const product = await Product.findById(order.productID);
+  
+        if (product && typeof product.price === 'number') {
+          
+          totalPrice += product.price;
+          console.log(`Product price: ${product.price}`);
+        }
+      }
+      
+      
+      
+      console.log(`Total price: ${totalPrice}`);
+      res.json({ success: true, numOrders, totalPrice });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ success: false, message: 'Server error' });
+    }
+  };
+  
+
+
   exports.updateOrderforUser = async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -252,3 +324,86 @@ exports.addProductforUser = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+ 
+
+
+exports.makePayment = async(req, res)=> {
+  const name = req.body.name;
+  const amount = req.body.amount;
+  const orderId = req.body.orderId;
+  const email = req.params.email;
+
+  try {
+    const customer = await stripe.customers.create({
+      email: req.body.stripeEmail,
+      source: req.body.stripeToken,
+      name: name
+    });
+
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: customer.id,
+      type: 'card',
+    });
+
+    console.log(paymentMethods)
+
+    if (paymentMethods.data.length === 0) {
+      throw new Error('Customer does not have an active payment method.');
+    }
+
+    const charge = await stripe.charges.create({
+      amount: amount,
+      description: "Products",
+      currency: 'USD',
+      customer: customer.id,
+      receipt_email: req.body.stripeEmail
+    });
+
+    const chargeId = charge.id;
+    const receiptLink = `https://dashboard.stripe.com/receipts/${chargeId}`;
+
+    res.json({
+      message: `Success, ${name} has ordered for product item ${orderId}`,
+      receipt_link: receiptLink
+    });
+
+
+    
+
+
+  } catch (error) {
+    console.log(error.message);
+
+    res.json({message: error.message});
+  }
+};
+
+
+exports.getOrdersforUser = async(req, res)=>{
+  try {
+    const user = await User.findOne({email: req.params.email}).populate("orders");
+
+
+    if(!user){
+      return res.status(400).json({message: "There is no user with such email"})
+    }
+
+
+    if (user.orders.length === 0) {
+      return res.status(200).json({ message: "This user has no orders" });
+    }
+
+    console.log(user)
+    return res.status(200).json(user)
+    
+  } catch (error) {
+    console.log(error)
+    res.status(404).json({error: error.message})
+    
+  }
+ 
+}
+
+
+
