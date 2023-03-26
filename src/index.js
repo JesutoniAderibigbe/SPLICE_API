@@ -33,7 +33,7 @@ app.use('/products', productRoutes);
 
 
 // Serve static files from public directory
-app.use('/public', express.static(path.join(__dirname, 'public')));
+//app.use('/public', express.static(path.join(__dirname, 'public')));
 
 
 //set up server
