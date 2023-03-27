@@ -37,7 +37,7 @@ app.use('/products', productRoutes);
 
 
 //set up server
-app.listen(PORT, ()=>{
+app.listen(port, ()=>{
     console.log(`Server running on port ${port}`)
 })
 
