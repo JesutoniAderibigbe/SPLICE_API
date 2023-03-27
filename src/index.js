@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
 const mongoose  = require("mongoose");
-const PORT = process.env.PORT || 8000
+const port = process.env.PORT || 8000
 const userRoutes = require('./routes/userRoutes');
 const productRoutes = require('./routes/productRoutes');
 const path = require('path');
@@ -38,7 +38,7 @@ app.use('/products', productRoutes);
 
 //set up server
 app.listen(PORT, ()=>{
-    console.log(`Server running on port ${PORT}`)
+    console.log(`Server running on port ${port}`)
 })
 
 
