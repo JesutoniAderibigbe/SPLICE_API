@@ -28,7 +28,7 @@ app.use(bodyParser.json())
 
 //set up routes
 
-app.use('/users', userRoutes);
+//app.use('/users', userRoutes);
 app.use('/products', productRoutes);
 
 
